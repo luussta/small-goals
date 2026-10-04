@@ -7,6 +7,8 @@ export const GoalSchema = z.object({
 export const SectionSchema = z.object({ id: z.string().min(1).max(100), title: z.string().min(1).max(100), collapsed: z.boolean(), goals: z.array(GoalSchema).max(200) }).strict();
 export const WorkspaceDataSchema = z.object({ sections: z.array(SectionSchema).min(1).max(30) }).strict().superRefine((data, context) => {
   const ids = new Set<string>();
+  let goalCount = 0;
+  let itemCount = 0;
   const add = (id: string, path: (string | number)[]) => {
     if (ids.has(id)) context.addIssue({ code: "custom", message: "IDs must be unique across the workspace.", path });
     ids.add(id);
@@ -14,10 +16,13 @@ export const WorkspaceDataSchema = z.object({ sections: z.array(SectionSchema).m
   data.sections.forEach((section, sectionIndex) => {
     add(section.id, ["sections", sectionIndex, "id"]);
     section.goals.forEach((goal, goalIndex) => {
+      goalCount++;
       add(goal.id, ["sections", sectionIndex, "goals", goalIndex, "id"]);
-      goal.items.forEach((item, itemIndex) => add(item.id, ["sections", sectionIndex, "goals", goalIndex, "items", itemIndex, "id"]));
+      goal.items.forEach((item, itemIndex) => { itemCount++; add(item.id, ["sections", sectionIndex, "goals", goalIndex, "items", itemIndex, "id"]); });
     });
   });
+  if (goalCount > 2000) context.addIssue({ code: "custom", message: "A workspace can contain at most 2,000 goals.", path: ["sections"] });
+  if (itemCount > 5000) context.addIssue({ code: "custom", message: "A workspace can contain at most 5,000 checklist items.", path: ["sections"] });
 });
 
 export type Item = z.infer<typeof ItemSchema>;

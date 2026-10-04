@@ -8,6 +8,11 @@ if (!rawUrl || !token) throw new Error("Set SMALL_GOALS_URL and SMALL_GOALS_TOKE
 const parsedUrl = new URL(rawUrl);
 if (parsedUrl.protocol !== "https:" && parsedUrl.hostname !== "localhost" && parsedUrl.hostname !== "127.0.0.1") throw new Error("SMALL_GOALS_URL must use HTTPS (except for localhost development).");
 const base = parsedUrl.origin.replace(/\/$/, "");
+type ApiData = {
+  error?: string;
+  workspace?: { data: { sections: Array<{ id: string; title: string; goals: unknown[] }> } };
+  [key: string]: unknown;
+};
 
 async function api(path: string, method = "GET", body?: unknown) {
   let response: Response;
@@ -21,7 +26,7 @@ async function api(path: string, method = "GET", body?: unknown) {
   } catch {
     throw new Error(`Small Goals deployment at ${base} could not be reached.`);
   }
-  const data = await response.json().catch(() => ({}));
+  const data = await response.json().catch(() => ({})) as ApiData;
   if (response.status === 401) throw new Error("Small Goals rejected the access token. Check SMALL_GOALS_TOKEN.");
   if (response.status === 404) throw new Error(data.error || "The requested goal, section, or item ID does not exist.");
   if (!response.ok) throw new Error(data.error || `Small Goals returned HTTP ${response.status}.`);
@@ -33,7 +38,7 @@ function createServer() {
   const server = new McpServer({ name: "small-goals", version: "1.0.0" }, { capabilities: { tools: {} } });
   server.registerTool("small_goals_get_state", { description: "Read the complete canonical workspace, including every section, goal, checklist item, completion state, stable ID, and current workspace name. Use this first when you need context.", inputSchema: {}, annotations: { readOnlyHint: true } }, async () => result(await api("state")));
   server.registerTool("small_goals_list_today", { description: "List the goals in the Today section with stable IDs, progress, status, and checklist details. Use this to answer what remains today or before adding something new.", inputSchema: {}, annotations: { readOnlyHint: true } }, async () => {
-    const { workspace } = await api("state"); const today = workspace.data.sections.find((section: { id: string }) => section.id === "today");
+    const { workspace } = await api("state"); const today = workspace?.data.sections.find((section) => section.id === "today");
     return result({ section: today || null });
   });
   server.registerTool("small_goals_list_section", { description: "List one section and its goals/items by stable section ID. Read state first if you only know the section title.", inputSchema: { sectionId: z.string().min(1) }, annotations: { readOnlyHint: true } }, async ({ sectionId }) => result(await api(`sections/${encodeURIComponent(sectionId)}`)));

@@ -1,5 +1,6 @@
 import { neon } from "@neondatabase/serverless";
-import type { Workspace, WorkspaceData } from "./model";
+import { WorkspaceDataSchema, normalize, type Workspace, type WorkspaceData } from "./model";
+import { z } from "zod";
 
 export class AppError extends Error {
   constructor(public status: number, message: string) { super(message); }
@@ -23,6 +24,8 @@ export async function updateWorkspace(mutate: (current: Workspace) => Workspace)
   for (let attempt = 0; attempt < 4; attempt++) {
     const current = await readWorkspace();
     const next = mutate(structuredClone(current));
+    next.name = z.string().trim().min(1).max(120).parse(next.name);
+    next.data = normalize(WorkspaceDataSchema.parse(next.data));
     const rows = await sql`UPDATE workspace SET name = ${next.name}, data = ${JSON.stringify(next.data)}::jsonb, version = version + 1, updated_at = NOW() WHERE id = 'default' AND version = ${current.version} RETURNING id, name, data, version, updated_at`;
     if (rows.length) return rowWorkspace(rows[0] as Record<string, unknown>);
   }

@@ -1,23 +1,25 @@
 # Deploy to Cloudflare Workers
 
-This deployment uses **Cloudflare Workers**, not static Cloudflare Pages, because the app needs Next.js route handlers and a shared Postgres database. It uses the OpenNext adapter to keep the existing Next.js framework. Cloudflare now recommends vinext for new Cloudflare Next.js projects; this repository uses the documented OpenNext adapter because it runs the existing Next app without switching its build framework. See [Cloudflare's Next.js options](https://developers.cloudflare.com/workers/framework-guides/web-apps/nextjs/) and [OpenNext guide](https://developers.cloudflare.com/workers/framework-guides/web-apps/opennext/).
+The app stays in its Next.js App Router structure. Cloudflare currently recommends **vinext** for Next.js on Workers; it reimplements the Next.js API surface on Vite and keeps the existing `src/app` UI and route handlers. Cloudflare describes vinext as beta, so this repository runs its compatibility check (currently 100% supported for the imports and features used here) and keeps `npm run dev` / `npm run build` on standard Next.js for Vercel. Read [Cloudflare's Next.js guide](https://developers.cloudflare.com/workers/framework-guides/web-apps/nextjs/) and [vinext Cloudflare deployment guide](https://vinext.dev/docs/deploying/cloudflare).
 
-## 1. Clone, install, and authenticate
+The Cloudflare typed config uses the current `cf` CLI and is in open beta. Use Node.js 22.18 or newer for Cloudflare setup and deploy commands.
+
+## 1. Clone, install, and authorize
 
 ```sh
 git clone <repository-url>
 cd small-goals
 npm install
-npx wrangler whoami
+npx cf auth login
 ```
 
-If `whoami` reports no active session, run `npx wrangler login` and complete Cloudflare account authorization.
+The login opens Cloudflare authorization in a browser. If the account has multiple eligible accounts, select the one that should own this Worker. The default Worker name is `small-goals` in `cloudflare.config.ts`.
 
 ## 2. Configure Neon and app name
 
-Create/select a Neon Postgres project. With an authorized Neon CLI, `npx neonctl projects create --name small-goals` provisions a small serverless database and prints its connection URI. If needed, authorize with `npx neonctl auth`. Use the default database/role unless the user requested another.
+Create/select a Neon Postgres project. If the Neon CLI is authorized, `npx neonctl projects create --name small-goals` provisions the database and prints its connection URI. Otherwise run `npx neonctl auth`; ask only if account/team selection or account authorization is needed.
 
-Set the workspace name in `wrangler.jsonc` under `vars.APP_NAME` (for example `"Lucio's Small Goals"`). Optionally add a plain-text `OWNER_NAME` variable there. Set the migration environment locally and initialize the schema/seed:
+Set the exact app name and the database URL in the deployment shell, then initialize the single workspace row:
 
 ```sh
 export APP_NAME="Lucio's Small Goals"
@@ -25,50 +27,51 @@ export DATABASE_URL='postgresql://…'
 npm run db:migrate
 ```
 
-This creates one `workspace` row and preserves its current data on later migration runs.
+`cloudflare.config.ts` reads `APP_NAME` and exposes it as a plain-text Worker binding. Migration seeds the workspace name and preserves existing goal data when rerun.
 
-## 3. Store secrets in Cloudflare
+## 3. Store Worker secrets
 
-Generate a strong agent token and choose a separate browser password:
+Generate an agent token and choose a separate browser password. The deployment helper sends secrets in a short-lived temporary file outside the repository and deletes it after deploy:
 
 ```sh
 export AGENT_API_TOKEN="$(npm run --silent generate-token)"
 export APP_ACCESS_PASSWORD='choose-a-separate-long-password'
-printf '%s' "$DATABASE_URL" | npx wrangler secret put DATABASE_URL
-printf '%s' "$AGENT_API_TOKEN" | npx wrangler secret put AGENT_API_TOKEN
-printf '%s' "$APP_ACCESS_PASSWORD" | npx wrangler secret put APP_ACCESS_PASSWORD
 ```
 
-Wrangler stores these as Worker secrets. Never put them in `wrangler.jsonc`, `.dev.vars` committed to Git, or any `NEXT_PUBLIC_*` variable. Keep `APP_NAME` as a normal Worker variable, not a secret.
+The Worker declares these secrets in `cloudflare.config.ts` with `bindings.secret()`. `npm run deploy:cloudflare` uploads them with the Worker version using Cloudflare's supported secrets-file interface. Never put them in config, `.dev.vars` committed to Git, or browser variables.
 
 ## 4. Build and deploy
 
-`wrangler.jsonc` and `open-next.config.ts` are already configured. The worker name defaults to `small-goals`; change `name` in `wrangler.jsonc` if the account needs a different unique Worker name.
+Run the compatibility build and deploy:
 
 ```sh
 npm run build:cloudflare
 npm run deploy:cloudflare
 ```
 
-`deploy:cloudflare` performs the OpenNext build and then runs `wrangler deploy`. The returned Worker URL is usually `https://<worker-name>.<account-subdomain>.workers.dev`. A custom domain can be attached later in Cloudflare.
+The app name must be set in the deployment shell when `cloudflare.config.ts` is loaded. `npm run deploy:cloudflare` performs the vinext build and then deploys the Build Output to Cloudflare with the three secrets from the shell. The resulting address is usually `https://small-goals.<account-subdomain>.workers.dev`.
 
-To preview in the Workers runtime before production deployment:
+To preview locally in the Workers runtime, put local-only values in `.dev.vars` (this file is gitignored):
 
-```sh
-npm run preview:cloudflare
+```dotenv
+DATABASE_URL=postgresql://…
+AGENT_API_TOKEN=local-test-token
+APP_ACCESS_PASSWORD=local-test-password
 ```
+
+Then run `npm run preview:cloudflare`. Keep `APP_NAME` set in the shell. Remove `.dev.vars` after local preview if it is no longer needed.
 
 ## 5. Verify
 
 ```sh
-export DEPLOYMENT_URL='https://your-worker.workers.dev'
+export DEPLOYMENT_URL='https://small-goals.<account-subdomain>.workers.dev'
 export AGENT_API_TOKEN='the-deployment-token'
 npm run verify:remote
 npm run verify:remote -- --write
 ```
 
-This checks the homepage, authenticated workspace read, then (with `--write`) creates a temporary goal and item, completes it, and removes the goal in a cleanup step.
+The first command checks the page and authenticated workspace read. The second creates a uniquely named temporary goal, adds an item, completes it, and deletes the goal in cleanup.
 
 ## 6. Configure MCP
 
-Set `SMALL_GOALS_URL` and `SMALL_GOALS_TOKEN` in your MCP client's environment. Follow [../mcp/README.md](../mcp/README.md). The browser UI uses `APP_ACCESS_PASSWORD`; the local MCP process uses `AGENT_API_TOKEN` as `SMALL_GOALS_TOKEN`.
+Set `SMALL_GOALS_URL` and `SMALL_GOALS_TOKEN` in the MCP client's private environment. The token value is the Worker `AGENT_API_TOKEN`. Follow [../mcp/README.md](../mcp/README.md).

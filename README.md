@@ -18,7 +18,7 @@ The app is personal and single-workspace. A small shared Postgres JSON document 
 
 ## Quick start
 
-Requirements: Node.js 20 or newer and a Neon Postgres database.
+Requirements: Node.js 22.18 or newer and a Neon Postgres database. Cloudflare's typed CLI requires this version; the app itself uses standard Next.js on Vercel.
 
 ```sh
 git clone <repository-url>
@@ -43,7 +43,7 @@ Open http://localhost:3000. The starter workspace is inserted once; running migr
 - **Cloudflare Workers:** [docs/DEPLOY_CLOUDFLARE.md](docs/DEPLOY_CLOUDFLARE.md)
 - **Agent-driven deployment checklist:** [docs/AGENT_DEPLOYMENT.md](docs/AGENT_DEPLOYMENT.md)
 
-The app now needs a server runtime and Postgres. The old static Cloudflare Pages export is intentionally removed. Cloudflare deployments use Workers with OpenNext to run this existing Next.js app.
+The app now needs a server runtime and Postgres. The old static Cloudflare Pages export is intentionally removed. Cloudflare deployments use Workers with vinext's Next.js-compatible runtime; the existing `src/app` UI and route handlers stay in place.
 
 ## Let an AI agent use it
 
@@ -80,11 +80,12 @@ There are no user accounts or multi-tenant features. The browser uses a single p
 - `scripts/` — token generation, schema initialization, local and remote verification
 - `mcp/` — local stdio MCP client for a deployed workspace
 - `skills/small-goals/` — reusable agent operating instructions
+- `cloudflare.config.ts`, `vite.config.ts` — Cloudflare Worker build/deploy configuration for vinext
 - `docs/` — deployment, API, and agent runbooks
 
 ## Commands
 
-`npm run dev`, `npm run build`, `npm run lint`, `npm run typecheck`, `npm run generate-token`, `npm run db:migrate`, `npm run verify`, `npm run verify:remote`, `npm run deploy:vercel`, `npm run build:cloudflare`, `npm run preview:cloudflare`, `npm run deploy:cloudflare`, `npm run mcp`.
+`npm run setup`, `npm run dev`, `npm run build`, `npm run lint`, `npm run typecheck`, `npm run generate-token`, `npm run db:migrate`, `npm run verify`, `npm run verify:remote`, `npm run deploy:vercel`, `npm run dev:vinext`, `npm run build:vinext`, `npm run start:vinext`, `npm run build:cloudflare`, `npm run preview:cloudflare`, `npm run deploy:cloudflare`, `npm run mcp`.
 
 `npm run verify` checks required app secrets plus database connectivity and workspace initialization. `verify:remote` checks public response and authenticated state read; add `-- --write` to create and always clean up a temporary goal/item while checking writes.
 

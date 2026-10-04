@@ -30,10 +30,11 @@
   },
   "include": [
     "next-env.d.ts",
-    ".next/types/**/*.ts",
+    ".next-nextjs/types/**/*.ts",
     "**/*.ts",
     "**/*.tsx",
-    ".next/dev/types/**/*.ts"
+    ".next-nextjs/dev/types/**/*.ts",
+    ".cloudflare/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

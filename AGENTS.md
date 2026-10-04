@@ -20,7 +20,7 @@ Small Goals is a personal, single-page Next.js task app. Its only product model 
 - `src/lib/db.ts` uses `@neondatabase/serverless` and a single `workspace` row. `data` is the complete validated JSON document. Writes use a version compare-and-swap to avoid losing concurrent edits.
 - `src/lib/model.ts` defines and validates `Section`, `Goal`, `Item`, and workspace types. Goal completion is derived: a non-empty list with every item completed is Done. A completed goal cannot remain active.
 - The browser UI has one `APP_ACCESS_PASSWORD` login and a signed HTTP-only session cookie. It is separate from and never given the agent token.
-- Vercel uses standard Next.js. Cloudflare Workers uses the OpenNext adapter to run this same Next.js app; do not restore `output: "export"` because API routes and Postgres need a server runtime.
+- Vercel uses standard Next.js. Cloudflare Workers uses Cloudflare's recommended vinext compatibility runtime for the same Next.js App Router source; the project has a checked 100% compatibility report for its current imports. Do not restore `output: "export"` because API routes and Postgres need a server runtime.
 - `mcp/server.ts` is a local stdio MCP client. `skills/small-goals/SKILL.md` teaches an agent how to use it well.
 
 ## Install and run
@@ -67,7 +67,7 @@ Start with `GET /api/agent/state`. Other routes are documented in [docs/AGENT_AP
 - `src/app/page.tsx` and `src/app/globals.css`: small existing product UI. Improve interaction/accessibility without redesigning it.
 - `src/lib/model.ts`, `src/lib/db.ts`, `src/lib/auth.ts`: data/security boundaries; validate every write.
 - `db/migrations/0001_workspace.sql`: only application table.
-- `wrangler.jsonc`, `open-next.config.ts`: Cloudflare Worker build/deploy configuration.
+- `cloudflare.config.ts`, `vite.config.ts`: Cloudflare Worker build/deploy configuration for vinext.
 - `docs/`, `mcp/`, `skills/small-goals/`: deployment, agent API, MCP, reusable operating instructions.
 
 Always read the relevant installed Next.js guide under `node_modules/next/dist/docs/` before changing Next.js APIs; this installed Next release has breaking changes from older conventions. Never remove the generated Next.js rules block above.

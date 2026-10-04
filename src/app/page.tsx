@@ -7,6 +7,7 @@ const id = () => crypto.randomUUID();
 const done = (goal: Goal) => goal.items.length > 0 && goal.items.every((item) => item.completed);
 const progress = (goal: Goal) => `${goal.items.filter((item) => item.completed).length}/${goal.items.length}`;
 type AuthInfo = { authenticated: boolean; name: string; ready: boolean };
+type WorkspaceReply = { workspace: { data: { sections: Section[] } }; error?: string };
 
 export default function Home() {
   const [sections, setSections] = useState<Section[]>([]);
@@ -26,13 +27,13 @@ export default function Home() {
 
   const refresh = useCallback(async () => {
     const response = await fetch("/api/workspace", { cache: "no-store" });
-    const result = await response.json();
+    const result = await response.json() as WorkspaceReply;
     if (!response.ok) throw new Error(result.error || "Could not load workspace.");
     current.current = result.workspace.data.sections;
     setSections(current.current);
   }, []);
   useEffect(() => {
-    fetch("/api/session", { cache: "no-store" }).then((r) => r.json()).then(async (info: AuthInfo) => {
+    fetch("/api/session", { cache: "no-store" }).then(async (r) => await r.json() as AuthInfo).then(async (info) => {
       setAuth(info);
       if (info.authenticated) await refresh().catch((cause) => setError(cause.message));
     }).catch(() => setError("Could not connect to the app."));
@@ -44,7 +45,7 @@ export default function Home() {
     setSections(next);
     saves.current = saves.current.then(async () => {
       const response = await fetch("/api/workspace", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sections: next }) });
-      const result = await response.json();
+      const result = await response.json() as { error?: string };
       if (!response.ok) throw new Error(result.error || "Could not save changes.");
     }).catch(async (cause) => { setError(cause.message || "Could not save changes."); await refresh().catch(() => undefined); });
   }
@@ -89,9 +90,9 @@ export default function Home() {
   async function signIn(event: React.FormEvent) {
     event.preventDefault(); setError("");
     const response = await fetch("/api/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password }) });
-    const result = await response.json();
+    const result = await response.json() as { error?: string; name?: string };
     if (!response.ok) { setError(result.error || "Sign in failed."); return; }
-    setAuth({ authenticated: true, name: result.name, ready: false }); setPassword(""); await refresh().catch((cause) => setError(cause.message));
+    setAuth({ authenticated: true, name: result.name || "Small Goals", ready: false }); setPassword(""); await refresh().catch((cause) => setError(cause.message));
   }
   useEffect(() => { if (editingGoal) titleInput.current?.focus(); }, [editingGoal]);
   useEffect(() => { if (editingItem) itemInput.current?.focus(); }, [editingItem]);

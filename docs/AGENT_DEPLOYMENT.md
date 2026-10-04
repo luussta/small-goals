@@ -5,7 +5,7 @@ Use this document when a user asks for a personal installation such as “Deploy
 ## Deterministic checklist
 
 1. **Clone and install.** Clone this repository to a new directory and run `npm install`. Read `AGENTS.md` and the chosen provider guide.
-2. **Name it.** Set `APP_NAME` to the user's exact requested name, including punctuation. For Cloudflare set `vars.APP_NAME` in `wrangler.jsonc`. For Vercel set the production environment variable.
+2. **Name it.** Set `APP_NAME` to the user's exact requested name, including punctuation. For Cloudflare export it before loading `cloudflare.config.ts` to build/deploy. For Vercel set the production environment variable.
 3. **Provision storage.** Reuse a Neon project only if the user has selected it for this instance. Otherwise, if `neonctl` is authorized, create one with `npx neonctl projects create --name small-goals`. Complete `npx neonctl auth` if needed. Ask only when Neon needs authorization, a team/account choice is ambiguous, or the provider requires an actual user action. Do not create a paid resource without the account's existing permission/plan covering it.
 4. **Create credentials.** Generate an `AGENT_API_TOKEN` with `npm run --silent generate-token`. Choose a separate strong `APP_ACCESS_PASSWORD` for browser access. Keep both in process memory or a secure credential manager; do not echo, commit, or report their values.
 5. **Initialize the workspace.** Set local `APP_NAME` and `DATABASE_URL`, then run `npm run db:migrate`. It creates the simple Postgres table and inserts seed goals only if no workspace exists.

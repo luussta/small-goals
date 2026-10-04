@@ -4,7 +4,7 @@ This repository includes a local stdio MCP server. It is a small authenticated c
 
 ## Requirements
 
-- Node.js 20+
+- Node.js 22.18 or newer (matches the repository runtime requirement)
 - A deployed Small Goals URL
 - The deployment's `AGENT_API_TOKEN`
 
