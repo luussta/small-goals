@@ -1,0 +1,4 @@
+interface:
+  display_name: "Small Goals"
+  short_description: "Operate a personal Small Goals workspace"
+  default_prompt: "Help me organize my Small Goals workspace."
