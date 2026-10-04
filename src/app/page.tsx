@@ -108,6 +108,14 @@ export default function Home() {
         <div className="color-legend" aria-label="Goal status colors"><span className="legend-item"><span className="legend-swatch legend-done" aria-hidden="true" />Done</span><span className="legend-item"><span className="legend-swatch legend-active" aria-hidden="true" />In progress</span><span className="legend-item"><span className="legend-swatch legend-idle" aria-hidden="true" />Not started</span></div>
       </header>
       {error && <p className="save-error" role="status">{error}</p>}
+      {sections.length > 0 && sections.every((section) => section.goals.length === 0) && <aside className="starter-guide" aria-label="A quick guide to Small Goals">
+        <p className="starter-title">A quick start</p>
+        <ol className="starter-steps">
+          <li><span className="starter-number">1</span><span>Add a goal under the section where it belongs.</span></li>
+          <li><span className="starter-number">2</span><span>Add a checklist item for each small step needed to finish it.</span></li>
+          <li><span className="starter-number">3</span><span>Mark a goal as in progress while you work. Check every item to finish it.</span></li>
+        </ol>
+      </aside>}
       <div className="sections" aria-label="Goals by timeframe">
         {sections.map((section, sectionIndex) => <section className="section" key={section.id}>
           <button className="section-heading" onClick={() => commit((all) => all.map((entry) => entry.id === section.id ? { ...entry, collapsed: !entry.collapsed } : entry))} aria-expanded={!section.collapsed}>

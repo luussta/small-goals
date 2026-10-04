@@ -21,15 +21,15 @@ Small Goals is a personal, single-page Next.js task app. Its only product model 
 - Workspace writes use entity tags/compare-and-swap where supported and retries on conflict. `src/lib/model.ts` validates the complete workspace. Goal completion is derived: a non-empty list with every item completed is Done, and a completed goal cannot remain active.
 - The browser UI has one `APP_ACCESS_PASSWORD` login and a signed HTTP-only session cookie. It is separate from, and never receives, the agent token.
 - Vercel uses standard Next.js. Cloudflare Workers uses the vinext compatibility runtime for the same App Router source. Do not restore `output: "export"` because API routes and private storage need a server runtime.
-- `mcp/server.ts` is a local stdio MCP client. `skills/small-goals/SKILL.md` teaches an agent how to operate it.
+- `mcp/server.ts` is a stdio MCP client. During approved setup, the installer copies the MCP runtime to `$CODEX_HOME/small-goals-mcp`, installs its dependencies there, registers it with the user's global Codex config, and copies `skills/small-goals/` to `$CODEX_HOME/skills/small-goals`. These are user-global installs, available across projects and threads, not project-local registrations.
 
 ## Default first install: deploy to the cloud
 
 When a user says to install or set up Small Goals, the default is a cloud deployment, not a local development server:
 
 1. Run `npm install` (Node.js 22.18+).
-2. Run `npm run setup` in an interactive terminal. It asks for the person's name and a browser password, defaults to Cloudflare Workers, generates the agent token, and displays the cloud resources it will create.
-3. Ask for approval at the setup prompt. After approval, the wizard starts provider login if needed, provisions private storage, deploys, and verifies the remote app and agent API. The user may need to complete Cloudflare/Vercel authorization in the provider's browser flow.
+2. Run `npm run setup` in an interactive terminal. It asks for the person's name and a browser password, defaults to Cloudflare Workers, generates the agent token, and displays cloud resources plus the global Codex skill/MCP installation it will perform.
+3. Ask for approval at the setup prompt. After approval, the wizard starts provider login if needed, provisions private storage, deploys, verifies the remote app and agent API, installs the skill into the user's global Codex skills folder, and registers the MCP in the user's global Codex configuration. The user may need to complete Cloudflare/Vercel authorization in the provider's browser flow.
 4. Give the user the cloud URL. Do not start `npm run dev` or switch to local storage unless the user explicitly requests local development.
 
 An explicit provider can be selected with `npm run setup -- --provider cloudflare` or `npm run setup -- --provider vercel`. Setup always deploys remotely; it never falls back to a local-only installation.
@@ -42,13 +42,13 @@ Only use this flow when the user asks to work locally:
 2. Run `npm run storage:init` to seed `.small-goals/workspace.json`.
 3. Run `npm run dev` and open http://localhost:3000.
 
-Useful commands: `npm run setup`, `npm run dev`, `npm run build`, `npm run lint`, `npm run typecheck`, `npm run generate-token`, `npm run storage:init`, `npm run verify`, `npm run verify:remote`, `npm run deploy:vercel`, `npm run build:cloudflare`, `npm run preview:cloudflare`, `npm run deploy:cloudflare`, `npm run mcp`.
+Useful commands: `npm run setup`, `npm run install:codex-global`, `npm run dev`, `npm run build`, `npm run lint`, `npm run typecheck`, `npm run generate-token`, `npm run storage:init`, `npm run verify`, `npm run verify:remote`, `npm run deploy:vercel`, `npm run build:cloudflare`, `npm run preview:cloudflare`, `npm run deploy:cloudflare`, `npm run mcp`.
 
 `npm run verify` checks local secrets and validates the local workspace file. `npm run verify:remote` needs `DEPLOYMENT_URL` and `AGENT_API_TOKEN`; pass `-- --write` to exercise and clean up a temporary goal and item.
 
 ## Persisted data
 
-The entire `Workspace` JSON document is stored as a single object/file. No SQL, migration, database service, browser storage, external state manager, or separate task table exists. `src/lib/seed.ts` supplies first-run data. The web UI and agent API must read and update the same document and expose stable IDs.
+The entire `Workspace` JSON document is stored as a single object/file. No SQL, migration, database service, browser storage, external state manager, or separate task table exists. `src/lib/seed.ts` creates the four standard sections with no goals; the UI shows its quick-start guide until the user creates a goal. The web UI and agent API must read and update the same document and expose stable IDs.
 
 ## Personalize a deployment
 
@@ -58,12 +58,12 @@ Set `APP_NAME="Lucio's Small Goals"` in the provider environment; source edits a
 
 When asked to deploy a personal instance:
 
-1. Clone/install the repository.
+1. Clone/install the repository. This checkout is only used to deploy; the skill and MCP are installed into the machine's user-global Codex directories.
 2. Run `npm run setup` as the default install path. It chooses Cloudflare Workers unless the user selects Vercel; an explicit provider can be passed with `--provider`.
-3. The wizard asks for the user's name and hidden browser password, generates an agent token, and displays the cloud deployment plan.
-4. Review the displayed provider resource and deployment summary. Do not proceed until the user explicitly approves it. After approval, the wizard launches provider CLI login if required (the user completes provider authorization in the provider's browser), creates private Vercel Blob or Cloudflare R2 storage, configures provider secrets, saves the generated agent token to the Git-ignored `.small-goals/agent-token`, deploys to the cloud, and runs remote read/write verification. Setup never starts a local-only installation.
-5. Configure the MCP client as described in `mcp/README.md`, if permitted. Never print or commit the token.
-6. Report the deployment URL, name, provider, verification result, MCP state, and remind the user to retain their password and token securely.
+3. The wizard asks for the user's name and hidden browser password, generates an agent token, and displays the cloud deployment plan, including the global Codex install paths.
+4. Review the displayed provider resource and global-install summary. Do not proceed until the user explicitly approves it. After approval, the wizard launches provider CLI login if required (the user completes provider authorization in the provider's browser), creates private Vercel Blob or Cloudflare R2 storage, configures provider secrets, deploys to the cloud, and runs remote read/write verification. Setup never starts a local-only installation.
+5. The same approved setup then copies the skill to `$CODEX_HOME/skills/small-goals`, installs the standalone MCP runtime at `$CODEX_HOME/small-goals-mcp`, stores the URL and agent token in `$CODEX_HOME/small-goals` with restrictive permissions (owner-only on POSIX), and registers a `small-goals` MCP server in the global Codex config. No token is written into the repository or MCP config. Never print or commit the token.
+6. Report the deployment URL, name, provider, verification result, and confirm that the global skill and MCP were installed. The user should keep their browser password safe; the machine-local token file is required for MCP access.
 
 There is no Neon/Postgres requirement. Read `docs/AGENT_DEPLOYMENT.md` for the detailed runbook. Do not redeploy an unrelated provider project or delete unrelated resources.
 

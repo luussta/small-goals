@@ -11,7 +11,7 @@ npm install
 npm run setup -- --provider cloudflare
 ```
 
-The wizard asks for your name and browser password, sets the app name to `<Name>'s Small Goals`, and generates the agent token. It shows the resource names and asks for approval before launching Cloudflare login, creating a bucket, or deploying. After approval it launches provider login if needed, creates the private R2 bucket, sets worker secrets, deploys, and verifies the API. To let the wizard select the provider, use `npm run setup`.
+The wizard asks for your name and browser password, sets the app name to `<Name>'s Small Goals`, and generates the agent token. It shows the resource names and global Codex install, then asks for approval before launching Cloudflare login, creating a bucket, or deploying. After approval it launches provider login if needed, creates the private R2 bucket, sets worker secrets, deploys, verifies the API, installs the skill and standalone MCP in the Codex user's global folders, stores the token outside the checkout, and registers the MCP globally. To let the wizard select the provider, use `npm run setup`.
 
 ## Manual deployment
 
@@ -63,4 +63,4 @@ The first command checks the page and authenticated workspace read. The second a
 
 ## Configure MCP
 
-Set `SMALL_GOALS_URL` and `SMALL_GOALS_TOKEN` in the MCP client's private environment. The token value is the Worker `AGENT_API_TOKEN`. Follow [../mcp/README.md](../mcp/README.md).
+For a manual deployment, set `SMALL_GOALS_URL` and `SMALL_GOALS_TOKEN` in a private process environment, then run `npm run install:codex-global` to install the skill and MCP into the current Codex user's global environment. The token value is the Worker `AGENT_API_TOKEN`. See [../mcp/README.md](../mcp/README.md) for other MCP clients.

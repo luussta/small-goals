@@ -1,11 +1,13 @@
 import { randomBytes } from "node:crypto";
-import { chmod, mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import { spawnSync } from "node:child_process";
+import { homedir } from "node:os";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 
 const npx = process.platform === "win32" ? "npx.cmd" : "npx";
+const codex = process.env.CODEX_CLI || (process.platform === "win32" ? "codex.cmd" : "codex");
+const codexHome = resolve(process.env.CODEX_HOME || join(homedir(), ".codex"));
 const args = process.argv.slice(2);
 const providerArg = args.find((arg) => arg.startsWith("--provider="))?.split("=")[1]
   ?? (args.includes("--provider") ? args[args.indexOf("--provider") + 1] : undefined);
@@ -75,18 +77,17 @@ async function chooseProvider(rl) {
 async function confirmApproval(rl, name, provider, resource) {
   stdout.write("\nSetup summary\n");
   stdout.write(`  App name: ${name}\n  Provider: ${provider}\n  Storage: private ${resource}\n  Credentials: a generated agent token and your browser password\n\n`);
-  stdout.write("This will create provider resources and deploy the app. Storage or hosting usage may be billed by your provider.\n");
-  return (await rl.question("Approve resource creation and deployment? [y/N] ")).trim().toLowerCase() === "y";
+  stdout.write(`After deployment, setup will install the skill globally at ${join(codexHome, "skills", "small-goals")} and the MCP runtime at ${join(codexHome, "small-goals-mcp")}. It will store the URL and agent token privately at ${join(codexHome, "small-goals")}, outside this repository, then register the MCP in your global Codex config so both are available in other projects and threads. Provider usage may be billed.\n`);
+  return (await rl.question("Approve cloud resources, deployment, and global Codex installation? [y/N] ")).trim().toLowerCase() === "y";
 }
 
-async function saveAgentToken(token) {
-  const directory = join(process.cwd(), ".small-goals");
-  const tokenPath = join(directory, "agent-token");
-  await mkdir(directory, { recursive: true, mode: 0o700 });
-  await writeFile(tokenPath, `${token}\n`, { encoding: "utf8", mode: 0o600 });
-  await chmod(directory, 0o700).catch(() => undefined);
-  await chmod(tokenPath, 0o600).catch(() => undefined);
-  return tokenPath;
+function ensureCodexCli() {
+  const relativeCodexHome = relative(process.cwd(), codexHome);
+  if (relativeCodexHome === "" || (!isAbsolute(relativeCodexHome) && relativeCodexHome !== ".." && !relativeCodexHome.startsWith(`..${sep}`))) {
+    throw new Error("CODEX_HOME must be outside the repository so the skill, MCP, and agent token are installed globally and stay out of Git. No cloud resources have been created.");
+  }
+  const result = run(codex, ["--version"], { stdio: "ignore" });
+  if (result.status !== 0) throw new Error("The Codex CLI is required to install the skill and MCP globally. Install Codex CLI or set CODEX_CLI to its executable, then rerun setup. No cloud resources have been created.");
 }
 
 async function ensureAuth(provider) {
@@ -171,6 +172,7 @@ async function main() {
     const resource = provider === "vercel"
       ? `Vercel project ${values.projectName} and private Blob store ${values.projectName}-data`
       : `Cloudflare Worker ${values.workerName} and private R2 bucket ${values.bucketName}`;
+    ensureCodexCli();
     const approved = await confirmApproval(rl, name, provider, resource);
     if (!approved) {
       stdout.write("No project or storage resources were created, and nothing was deployed.\n");
@@ -178,14 +180,20 @@ async function main() {
     }
 
     await ensureAuth(provider);
-    const tokenPath = await saveAgentToken(values.agentToken);
     const url = provider === "vercel" ? await deployVercel(values) : await deployCloudflare(values);
     if (!url) throw new Error("Deployment finished, but its URL could not be detected from the provider output. Set DEPLOYMENT_URL and run npm run verify:remote.");
     runCaptured("node", ["scripts/verify-remote.mjs", "--write"], {
       env: { ...process.env, DEPLOYMENT_URL: url, AGENT_API_TOKEN: values.agentToken },
     }, [values.agentToken]);
-    stdout.write(`\nDeployment complete\nApp: ${url}\nName: ${name}\nProvider: ${provider === "vercel" ? "Vercel" : "Cloudflare Workers"}\nAgent API: verified\n`);
-    stdout.write(`The agent token is stored as a provider secret and in the Git-ignored file ${tokenPath}. Keep that file and your browser password safe.\n`);
+    try {
+      runCaptured("node", ["scripts/install-codex-global.mjs"], {
+        env: { ...process.env, SMALL_GOALS_URL: url, SMALL_GOALS_TOKEN: values.agentToken },
+      }, [values.agentToken]);
+    } catch (error) {
+      throw new Error(`Deployment and remote API verification succeeded at ${url}, but global Codex skill/MCP installation failed: ${error instanceof Error ? error.message : "unknown installer error"}. The app is deployed; run npm run install:codex-global -- with SMALL_GOALS_URL and SMALL_GOALS_TOKEN set to finish the global install.`);
+    }
+    stdout.write(`\nDeployment complete\nApp: ${url}\nName: ${name}\nProvider: ${provider === "vercel" ? "Vercel" : "Cloudflare Workers"}\nAgent API: verified\nCodex skill: installed globally\nCodex MCP: registered globally\n`);
+    stdout.write("The deployment token is stored in your private Codex home directory and as a provider secret. Keep your browser password safe. Restart Codex or start a new thread if the MCP server list does not refresh immediately.\n");
   } finally {
     rl.close();
   }

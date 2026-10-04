@@ -11,7 +11,7 @@ npm install
 npm run setup -- --provider vercel
 ```
 
-The wizard asks for your name and browser password, sets the app name to `<Name>'s Small Goals`, and generates an agent token. It shows the resource names and asks for approval before launching Vercel login, creating a project or private Blob store, or deploying. After approval, it launches provider login if needed, stores secrets in Vercel, deploys, and verifies the API. To let the wizard select the provider, use `npm run setup`.
+The wizard asks for your name and browser password, sets the app name to `<Name>'s Small Goals`, and generates an agent token. It shows the resource names and global Codex install, then asks for approval before launching Vercel login, creating a project or private Blob store, or deploying. After approval, it launches provider login if needed, stores secrets in Vercel, deploys, verifies the API, installs the skill and standalone MCP in the Codex user's global folders, stores the token outside the checkout, and registers the MCP globally. To let the wizard select the provider, use `npm run setup`.
 
 ## Manual Vercel CLI deployment
 
@@ -58,4 +58,4 @@ The first command checks the page and authenticated `GET /api/agent/state`. The 
 
 ## Configure MCP
 
-Set `SMALL_GOALS_URL` to the production URL and `SMALL_GOALS_TOKEN` to the agent token in the MCP client's private environment. Follow [../mcp/README.md](../mcp/README.md). Keep the browser password for human login; MCP uses the separate agent token.
+For a manual deployment, set `SMALL_GOALS_URL` to the production URL and `SMALL_GOALS_TOKEN` to the agent token in a private process environment, then run `npm run install:codex-global` to install the skill and MCP into the current Codex user's global environment. Keep the browser password for human login; MCP uses the separate agent token. See [../mcp/README.md](../mcp/README.md) for other MCP clients.

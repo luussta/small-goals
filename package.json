@@ -7,6 +7,7 @@
     "build": "next build",
     "setup": "node scripts/bootstrap.mjs",
     "bootstrap": "node scripts/bootstrap.mjs",
+    "install:codex-global": "node scripts/install-codex-global.mjs",
     "lint": "eslint .",
     "typecheck": "next typegen && tsc --noEmit",
     "generate-token": "node scripts/generate-token.mjs",
