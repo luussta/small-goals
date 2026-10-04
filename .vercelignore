@@ -1,0 +1,5 @@
+.small-goals/
+.env
+.env.*
+.dev.vars
+.dev.vars.*

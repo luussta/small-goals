@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 
 const COOKIE = "small_goals_session";
+const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 function signature(secret: string) { return createHmac("sha256", secret).update("small-goals-session-v1").digest("hex"); }
 function safeEqual(a: string, b: string) {
   const left = Buffer.from(a); const right = Buffer.from(b);
@@ -23,7 +24,6 @@ export async function hasUiSession() {
 export function sessionCookie(secure: boolean) {
   const secret = process.env.APP_ACCESS_PASSWORD;
   if (!secret) return null;
-  return { name: COOKIE, value: signature(secret), httpOnly: true, secure, sameSite: "strict" as const, path: "/", maxAge: 60 * 60 * 24 * 30 };
+  return { name: COOKIE, value: signature(secret), httpOnly: true, secure, sameSite: "strict" as const, path: "/", maxAge: SESSION_MAX_AGE_SECONDS };
 }
 export const expiredSessionCookie = (secure: boolean) => ({ name: COOKIE, value: "", httpOnly: true, secure, sameSite: "strict" as const, path: "/", maxAge: 0 });
-

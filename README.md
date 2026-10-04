@@ -2,92 +2,103 @@
 
 A tiny personal task system built around **section → goal → exact checklist**.
 
-It is a quiet single page for Today, This Week, This Month, and Milestones. Black means not started, orange means currently in progress, and green means every checklist item is done. The interface stays intentionally small: no accounts, dashboards, priorities, tags, or calendar.
+Small Goals is a quiet page for Today, This Week, This Month, and Milestones. Black means not started, orange means currently in progress, and green means every checklist item is done.
 
 ## Philosophy
 
-Small Goals is not trying to be Notion, Linear, Todoist, or Asana. It models only:
+This deliberately does not try to be Notion, Linear, Todoist, or Asana. It models only:
 
-```
-Section
-└── Goal
-    └── Items required to finish the goal
+```text
+Section → Goal → Items required to finish the goal
 ```
 
-The app is personal and single-workspace. A small shared Postgres JSON document is the canonical state for both the web UI and authenticated agent API.
+There are no accounts, dashboards, priorities, dates, tags, or extra views.
 
 ## Quick start
 
-Requirements: Node.js 22.18 or newer and a Neon Postgres database. Cloudflare's typed CLI requires this version; the app itself uses standard Next.js on Vercel.
+Requirements: Node.js 22.18 or newer. The local development server stores one JSON workspace at `.small-goals/workspace.json`; no database account or external service is needed.
 
 ```sh
-git clone <repository-url>
+git clone https://github.com/luussta/small-goals.git
 cd small-goals
 npm install
 cp .env.example .env.local
 npm run generate-token
 ```
 
-Set `APP_NAME`, `DATABASE_URL`, `AGENT_API_TOKEN`, and `APP_ACCESS_PASSWORD` in `.env.local`. `APP_ACCESS_PASSWORD` protects the browser UI; keep it different from the agent token. Initialize the one-row workspace and start Next.js:
+Put the generated token and a separate browser password in `.env.local`, then run:
 
 ```sh
-npm run db:migrate
+npm run storage:init
 npm run dev
 ```
 
-Open http://localhost:3000. The starter workspace is inserted once; running migration again preserves its goals.
+Open http://localhost:3000. `APP_NAME` sets the header text. Local workspace data stays in the ignored `.small-goals/` directory.
 
 ## Deploy your own
 
-- **Vercel:** [docs/DEPLOY_VERCEL.md](docs/DEPLOY_VERCEL.md)
-- **Cloudflare Workers:** [docs/DEPLOY_CLOUDFLARE.md](docs/DEPLOY_CLOUDFLARE.md)
-- **Agent-driven deployment checklist:** [docs/AGENT_DEPLOYMENT.md](docs/AGENT_DEPLOYMENT.md)
+The easiest path is the setup wizard. It asks for your name and browser password, generates the agent token, then shows a resource summary and waits for your approval before signing into the provider, creating private storage, and deploying. If provider login is needed, the wizard launches that login flow for you; you complete the provider's secure authorization in its browser window.
 
-The app now needs a server runtime and Postgres. The old static Cloudflare Pages export is intentionally removed. Cloudflare deployments use Workers with vinext's Next.js-compatible runtime; the existing `src/app` UI and route handlers stay in place.
+```sh
+npm run setup
+```
+
+Or choose a provider non-interactively:
+
+```sh
+npm run setup -- --provider cloudflare
+npm run setup -- --provider vercel
+```
+
+The wizard creates private Cloudflare R2 storage for Workers or a private Vercel Blob store for Vercel. It keeps the generated token in a permission-restricted `.small-goals/agent-token` file that Git ignores, for later MCP configuration. Neither provider requires Neon or another database.
+
+- **Vercel:** [deployment guide](docs/DEPLOY_VERCEL.md)
+- **Cloudflare Workers:** [deployment guide](docs/DEPLOY_CLOUDFLARE.md)
+- **Agent deployment checklist:** [docs/AGENT_DEPLOYMENT.md](docs/AGENT_DEPLOYMENT.md)
 
 ## Let an AI agent use it
 
-The private bearer-token API is rooted at `/api/agent`. Its read endpoint is `GET /api/agent/state`; all reads and writes require `Authorization: Bearer <AGENT_API_TOKEN>`. See [the API reference](docs/AGENT_API.md).
+The authenticated API is rooted at `/api/agent`. `GET /api/agent/state` reads the full workspace; all API reads and writes require `Authorization: Bearer <AGENT_API_TOKEN>`. See [the API reference](docs/AGENT_API.md).
 
-The repository includes a stdio MCP server in `mcp/server.ts` and an agent operating guide at [skills/small-goals/SKILL.md](skills/small-goals/SKILL.md). Configure an MCP client with `SMALL_GOALS_URL` and `SMALL_GOALS_TOKEN`; examples are in [mcp/README.md](mcp/README.md).
+The repository includes a stdio MCP server in `mcp/server.ts` and an operating guide at [skills/small-goals/SKILL.md](skills/small-goals/SKILL.md). Configure an MCP client with `SMALL_GOALS_URL` and `SMALL_GOALS_TOKEN`; examples are in [mcp/README.md](mcp/README.md).
 
-The browser and MCP tools call the same server-side state. Browser UI access has a separate single-password gate (`APP_ACCESS_PASSWORD`); agent API credentials never enter browser JavaScript.
+The browser and agent API use the same server-side workspace. Browser access has a separate password gate (`APP_ACCESS_PASSWORD`); the agent token is never sent to browser code.
 
 ## Environment variables
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `APP_NAME` | Yes | Personal name shown in the app header; seeded into the workspace at migration time. |
-| `OWNER_NAME` | No | Optional owner label for external setup or future copy. |
-| `DATABASE_URL` | Yes | Neon Postgres connection string; server-side secret. |
-| `AGENT_API_TOKEN` | Yes | Strong bearer token for the agent API; server-side secret. |
-| `APP_ACCESS_PASSWORD` | Yes | Separate browser password; stored only as a deployment secret. |
-| `DEPLOYMENT_URL` | Remote verify | Base URL used by `npm run verify:remote`. |
-| `SMALL_GOALS_URL` | MCP | Deployed app base URL used by the MCP process. |
-| `SMALL_GOALS_TOKEN` | MCP | Agent API token supplied to the local MCP process. |
+| `APP_NAME` | Yes in deployment | Personal name shown in the header. |
+| `OWNER_NAME` | No | Optional owner label. |
+| `AGENT_API_TOKEN` | Yes | Generated bearer token for the server-side agent API. |
+| `APP_ACCESS_PASSWORD` | Yes | Separate password for browser access. |
+| `BLOB_READ_WRITE_TOKEN` | Vercel only | Private Blob credential; the setup wizard connects it automatically. |
+| `DEPLOYMENT_URL` | Remote verification | Base URL for `npm run verify:remote`. |
+| `SMALL_GOALS_URL` | MCP | Deployed app URL provided to the MCP process. |
+| `SMALL_GOALS_TOKEN` | MCP | Agent token provided to the local MCP process. |
 
-See [.env.example](.env.example). Never prefix secrets with `NEXT_PUBLIC_`.
+Cloudflare storage is attached as a private R2 bucket binding and does not require a database URL. See [.env.example](.env.example). Never prefix secrets with `NEXT_PUBLIC_`.
 
 ## Security
 
-There are no user accounts or multi-tenant features. The browser uses a single password and a signed, HTTP-only, same-site cookie. The agent API uses a separate server-side bearer token with constant-time comparison. Every agent route, including reads, requires the token; browser write requests require the session and same-origin checks. Inputs are validated, request bodies are limited, and API errors do not include credentials. Do not put secrets in the repository, client bundle, URLs, MCP config committed to Git, or logs.
+The browser uses one password and a signed, HTTP-only, same-site cookie with a one-year lifetime, so the browser remembers its login without storing the password. The API uses a separate server-side bearer token with constant-time comparison. Agent reads and writes require authentication; browser writes require a session and same-origin checks. Inputs are validated and API errors do not include credentials. The setup wizard stores the token in the ignored, permission-restricted `.small-goals/agent-token` file. Do not put secrets in Git, client bundles, URLs, MCP config committed to Git, or logs.
 
 ## Repository map
 
 - `src/app/` — one-page UI and Next.js route handlers
-- `src/lib/` — workspace types, validation, seed data, auth, and Postgres access
-- `db/migrations/` — the small workspace table
-- `scripts/` — token generation, schema initialization, local and remote verification
-- `mcp/` — local stdio MCP client for a deployed workspace
+- `src/lib/` — workspace validation, seed data, auth, and provider/local JSON storage
+- `src/lib/storage/` — local file and Cloudflare R2 adapters
+- `scripts/` — setup wizard, token generation, storage initialization, verification, deployment
+- `mcp/` — local stdio MCP client
 - `skills/small-goals/` — reusable agent operating instructions
-- `cloudflare.config.ts`, `vite.config.ts` — Cloudflare Worker build/deploy configuration for vinext
+- `cloudflare.config.ts`, `vite.config.ts` — Cloudflare Worker configuration
 - `docs/` — deployment, API, and agent runbooks
 
 ## Commands
 
-`npm run setup`, `npm run dev`, `npm run build`, `npm run lint`, `npm run typecheck`, `npm run generate-token`, `npm run db:migrate`, `npm run verify`, `npm run verify:remote`, `npm run deploy:vercel`, `npm run dev:vinext`, `npm run build:vinext`, `npm run start:vinext`, `npm run build:cloudflare`, `npm run preview:cloudflare`, `npm run deploy:cloudflare`, `npm run mcp`.
+`npm run setup`, `npm run bootstrap`, `npm run dev`, `npm run build`, `npm run lint`, `npm run typecheck`, `npm run generate-token`, `npm run storage:init`, `npm run verify`, `npm run verify:remote`, `npm run deploy:vercel`, `npm run dev:vinext`, `npm run build:vinext`, `npm run start:vinext`, `npm run build:cloudflare`, `npm run preview:cloudflare`, `npm run deploy:cloudflare`, `npm run mcp`.
 
-`npm run verify` checks required app secrets plus database connectivity and workspace initialization. `verify:remote` checks public response and authenticated state read; add `-- --write` to create and always clean up a temporary goal/item while checking writes.
+`npm run verify` checks app secrets and that persistent workspace storage can be read. `npm run verify:remote` checks the page and authenticated state read; add `-- --write` to create and clean up a temporary goal and item.
 
 ## License
 

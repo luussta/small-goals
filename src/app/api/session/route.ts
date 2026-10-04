@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { checkDatabase, readWorkspace } from "@/lib/db";
+import { checkStorage, readWorkspace } from "@/lib/db";
 import { configuredAppName, hasUiSession, sessionCookie, expiredSessionCookie } from "@/lib/auth";
 import { errorResponse, json, readJson, sameOrigin } from "@/lib/http";
 
@@ -10,7 +10,7 @@ export async function GET() {
   let ready = false;
   if (authenticated) {
     try { const workspace = await readWorkspace(); name = workspace.name || name; ready = true; }
-    catch { await checkDatabase().catch(() => undefined); }
+    catch { await checkStorage().catch(() => undefined); }
   }
   return json({ authenticated, name, ready });
 }

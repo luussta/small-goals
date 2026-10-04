@@ -1,70 +1,51 @@
 # Deploy to Vercel
 
-This is a normal dynamic Next.js app on Vercel with a Neon Postgres database. The CLI flow below leaves every credential in provider secret storage or a short-lived shell variable.
+Small Goals runs as a dynamic Next.js app with private Vercel Blob storage. It does not use Neon, Postgres, or a separate database service.
 
-## Before deploying
+## Automatic setup (recommended)
 
-1. Clone and install:
+```sh
+git clone https://github.com/luussta/small-goals.git
+cd small-goals
+npm install
+npm run setup -- --provider vercel
+```
+
+The wizard asks for your name and browser password, sets the app name to `<Name>'s Small Goals`, and generates an agent token. It shows the resource names and asks for approval before launching Vercel login, creating a project or private Blob store, or deploying. After approval, it launches provider login if needed, stores secrets in Vercel, deploys, and verifies the API. To let the wizard select the provider, use `npm run setup`.
+
+## Manual Vercel CLI deployment
+
+1. Install and authenticate:
 
    ```sh
-   git clone <repository-url>
-   cd small-goals
    npm install
+   npx --yes vercel login
+   npx --yes vercel whoami
    ```
 
-2. Create or select a Neon project. If Neon CLI is authenticated, `npx neonctl projects create --name small-goals` creates a database and returns its connection string. Otherwise run `npx neonctl auth` and complete account authorization. Use an existing database only after confirming it is intended for this deployment.
+2. Create a Vercel project and a private Blob store in the Vercel dashboard or CLI. Connect the Blob store to the project’s Production environment so Vercel supplies `BLOB_READ_WRITE_TOKEN` at runtime.
 
-3. Set up deployment values in the current shell without committing them:
+3. Generate an agent token and choose a separate browser password. Add `APP_NAME`, `AGENT_API_TOKEN`, and `APP_ACCESS_PASSWORD` to the project’s Production environment. Mark secrets as sensitive and never use `NEXT_PUBLIC_` prefixes.
 
-   ```sh
-   export APP_NAME="Lucio's Small Goals"
-   export DATABASE_URL='postgresql://…'
-   export APP_ACCESS_PASSWORD='choose-a-separate-long-password'
-   export AGENT_API_TOKEN="$(npm run --silent generate-token)"
-   npm run db:migrate
-   ```
-
-   `db:migrate` creates the `workspace` table and inserts the starter workspace. It is safe to rerun and does not replace existing goals.
-
-4. Ensure Vercel CLI is authenticated (`npx vercel whoami`). If it is not, run `npx vercel login` and complete the account authorization.
-
-## A. Vercel CLI deployment
-
-1. Link this directory to a Vercel project. This creates a new project if needed and asks for a team only if the account has more than one eligible scope:
+4. Deploy:
 
    ```sh
-   npx vercel link
-   ```
-
-2. Add values to Production. Vercel prompts for each value; paste from the current shell or the secure credential store. Use `--sensitive` on secrets:
-
-   ```sh
-   printf '%s' "$APP_NAME" | npx vercel env add APP_NAME production
-   printf '%s' "$DATABASE_URL" | npx vercel env add DATABASE_URL production --sensitive
-   printf '%s' "$AGENT_API_TOKEN" | npx vercel env add AGENT_API_TOKEN production --sensitive
-   printf '%s' "$APP_ACCESS_PASSWORD" | npx vercel env add APP_ACCESS_PASSWORD production --sensitive
-   ```
-
-   Repeat for Preview/Development only if those deployments should have access to this same personal workspace. Otherwise keep credentials production-only.
-
-3. Deploy the production build:
-
-   ```sh
+   npx --yes vercel link
    npm run deploy:vercel
    ```
 
-   The command is `npx --yes vercel --prod`; it uses the project linked in step 1. Use the production URL printed by Vercel.
+## Vercel dashboard deployment
 
-## B. Vercel dashboard deployment
+1. Import the public GitHub repository into Vercel; keep the detected Next.js framework and default build command `next build`.
+2. Create and connect a **private** Blob store to the project. Vercel should add the server-side `BLOB_READ_WRITE_TOKEN` environment variable.
+3. Add `APP_NAME`, `AGENT_API_TOKEN`, and `APP_ACCESS_PASSWORD` as Production environment variables. Keep both credentials private and never prefix them with `NEXT_PUBLIC_`.
+4. Deploy from the dashboard.
 
-1. Import the repository from GitHub in the Vercel dashboard. Keep the detected Next.js framework and default build command `next build`.
-2. Add `APP_NAME`, `DATABASE_URL`, `AGENT_API_TOKEN`, and `APP_ACCESS_PASSWORD` in **Project Settings → Environment Variables** for Production. Mark the three secrets sensitive/private. Do not prefix them with `NEXT_PUBLIC_`.
-3. In a local checkout, set `APP_NAME` and `DATABASE_URL` in `.env.local` and run `npm run db:migrate` once against that Neon database. Do not commit `.env.local`.
-4. Deploy from the dashboard or run `npx vercel --prod` after linking the local checkout.
+No database migration or storage bootstrap command is needed. The first app request creates the initial workspace in private Blob storage.
 
 ## Verify
 
-Set these in the same local shell (or source an untracked `.env.local`):
+Set local verification inputs without committing them:
 
 ```sh
 export DEPLOYMENT_URL='https://your-project.vercel.app'
@@ -73,8 +54,8 @@ npm run verify:remote
 npm run verify:remote -- --write
 ```
 
-The first command checks the page and authenticated `GET /api/agent/state`. The second also creates a uniquely named temporary goal, adds an item, marks it complete, and deletes the goal in a `finally` cleanup. Keep the production URL and token out of committed files and logs.
+The first command checks the page and authenticated `GET /api/agent/state`. The second also creates a uniquely named temporary goal and item, marks it complete, and deletes the goal in cleanup.
 
 ## Configure MCP
 
-Set `SMALL_GOALS_URL` to the production URL and `SMALL_GOALS_TOKEN` to the same agent token in the MCP client's environment. Follow [../mcp/README.md](../mcp/README.md). Keep `APP_ACCESS_PASSWORD` for the human browser login; MCP uses the agent token.
+Set `SMALL_GOALS_URL` to the production URL and `SMALL_GOALS_TOKEN` to the agent token in the MCP client's private environment. Follow [../mcp/README.md](../mcp/README.md). Keep the browser password for human login; MCP uses the separate agent token.
