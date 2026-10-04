@@ -5,7 +5,7 @@ Use this when a user asks for a personal deployment, for example: “Deploy this
 ## Deterministic checklist
 
 1. Clone the repository and run `npm install`. Read `AGENTS.md` and the selected provider guide.
-2. Run `npm run setup -- --provider cloudflare` or `npm run setup -- --provider vercel`. If no provider was specified, run `npm run setup` and let the user choose.
+2. Run `npm run setup`. It defaults to Cloudflare Workers; if the user asked for Vercel, pass `-- --provider vercel`. The user can also choose Vercel at the provider prompt.
 3. The wizard asks for the user's name and a browser password (hidden input), then names the app `<Name>'s Small Goals` and generates a strong agent API token. It uses private Cloudflare R2 or private Vercel Blob; both hold the same single JSON workspace. No external database is needed.
 4. The wizard prints a resource/deployment summary and waits for explicit approval before provider login, resource creation, or deployment. If declined, it exits without provisioning or deployment. Once approved, it launches the provider CLI login automatically if needed; the user completes the provider's secure browser authorization.
 5. After approval, let the wizard finish. It saves the generated API token to the Git-ignored `.small-goals/agent-token` file with restrictive file permissions, creates the minimum provider resources, adds secrets server-side, deploys, and runs `npm run verify:remote -- --write` against the deployment.

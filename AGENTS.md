@@ -23,16 +23,28 @@ Small Goals is a personal, single-page Next.js task app. Its only product model 
 - Vercel uses standard Next.js. Cloudflare Workers uses the vinext compatibility runtime for the same App Router source. Do not restore `output: "export"` because API routes and private storage need a server runtime.
 - `mcp/server.ts` is a local stdio MCP client. `skills/small-goals/SKILL.md` teaches an agent how to operate it.
 
-## Install and run locally
+## Default first install: deploy to the cloud
+
+When a user says to install or set up Small Goals, the default is a cloud deployment, not a local development server:
 
 1. Run `npm install` (Node.js 22.18+).
-2. Copy `.env.example` to `.env.local`; set `APP_NAME`, `AGENT_API_TOKEN`, and `APP_ACCESS_PASSWORD`.
-3. Run `npm run storage:init` to seed `.small-goals/workspace.json`.
-4. Run `npm run dev` and open http://localhost:3000.
+2. Run `npm run setup` in an interactive terminal. It asks for the person's name and a browser password, defaults to Cloudflare Workers, generates the agent token, and displays the cloud resources it will create.
+3. Ask for approval at the setup prompt. After approval, the wizard starts provider login if needed, provisions private storage, deploys, and verifies the remote app and agent API. The user may need to complete Cloudflare/Vercel authorization in the provider's browser flow.
+4. Give the user the cloud URL. Do not start `npm run dev` or switch to local storage unless the user explicitly requests local development.
+
+An explicit provider can be selected with `npm run setup -- --provider cloudflare` or `npm run setup -- --provider vercel`. Setup always deploys remotely; it never falls back to a local-only installation.
+
+## Optional local development
+
+Only use this flow when the user asks to work locally:
+
+1. Copy `.env.example` to `.env.local`; set `APP_NAME`, `AGENT_API_TOKEN`, and `APP_ACCESS_PASSWORD`.
+2. Run `npm run storage:init` to seed `.small-goals/workspace.json`.
+3. Run `npm run dev` and open http://localhost:3000.
 
 Useful commands: `npm run setup`, `npm run dev`, `npm run build`, `npm run lint`, `npm run typecheck`, `npm run generate-token`, `npm run storage:init`, `npm run verify`, `npm run verify:remote`, `npm run deploy:vercel`, `npm run build:cloudflare`, `npm run preview:cloudflare`, `npm run deploy:cloudflare`, `npm run mcp`.
 
-`npm run verify` needs app name, agent token, browser password, and readable persistent storage. `npm run verify:remote` needs `DEPLOYMENT_URL` and `AGENT_API_TOKEN`; pass `-- --write` to exercise and clean up a temporary goal and item.
+`npm run verify` checks local secrets and validates the local workspace file. `npm run verify:remote` needs `DEPLOYMENT_URL` and `AGENT_API_TOKEN`; pass `-- --write` to exercise and clean up a temporary goal and item.
 
 ## Persisted data
 
@@ -47,8 +59,8 @@ Set `APP_NAME="Lucio's Small Goals"` in the provider environment; source edits a
 When asked to deploy a personal instance:
 
 1. Clone/install the repository.
-2. Run `npm run setup -- --provider vercel` or `npm run setup -- --provider cloudflare`; omit the provider flag when the user should choose.
-3. The wizard asks for the app name and hidden browser password, generates an agent token, then checks provider authentication.
+2. Run `npm run setup` as the default install path. It chooses Cloudflare Workers unless the user selects Vercel; an explicit provider can be passed with `--provider`.
+3. The wizard asks for the user's name and hidden browser password, generates an agent token, and displays the cloud deployment plan.
 4. Review the displayed provider resource and deployment summary. Do not proceed until the user explicitly approves it. After approval, the wizard launches provider CLI login if required (the user completes provider authorization in the provider's browser), creates private Vercel Blob or Cloudflare R2 storage, configures provider secrets, saves the generated agent token to the Git-ignored `.small-goals/agent-token`, deploys to the cloud, and runs remote read/write verification. Setup never starts a local-only installation.
 5. Configure the MCP client as described in `mcp/README.md`, if permitted. Never print or commit the token.
 6. Report the deployment URL, name, provider, verification result, MCP state, and remind the user to retain their password and token securely.

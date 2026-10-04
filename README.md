@@ -16,12 +16,22 @@ There are no accounts, dashboards, priorities, dates, tags, or extra views.
 
 ## Quick start
 
-Requirements: Node.js 22.18 or newer. The local development server stores one JSON workspace at `.small-goals/workspace.json`; no database account or external service is needed.
+Requirements: Node.js 22.18 or newer. The default installation deploys to the cloud; it does not start a local-only app.
 
 ```sh
 git clone https://github.com/luussta/small-goals.git
 cd small-goals
 npm install
+npm run setup
+```
+
+The setup wizard asks for your name and a browser password, then defaults to Cloudflare Workers (choose Vercel if preferred). It displays the planned cloud resources and waits for your approval. After approval it starts provider sign-in if needed, deploys the app, and verifies it. You may need to finish provider authorization in the browser that opens.
+
+## Optional local development
+
+Use this only when you want a local development server. Local data is stored at `.small-goals/workspace.json` and does not sync to the cloud.
+
+```sh
 cp .env.example .env.local
 npm run generate-token
 ```
@@ -37,7 +47,7 @@ Open http://localhost:3000. `APP_NAME` sets the header text. Local workspace dat
 
 ## Deploy your own
 
-The easiest path is the setup wizard. It asks for your name and browser password, generates the agent token, then shows a resource summary and waits for your approval before signing into the provider, creating private storage, and deploying. If provider login is needed, the wizard launches that login flow for you; you complete the provider's secure authorization in its browser window.
+The setup wizard is the default install path described above. It asks for your name and browser password, generates the agent token, then shows a resource summary and waits for your approval before signing into the provider, creating private storage, and deploying. If provider login is needed, the wizard launches that login flow for you; you complete the provider's secure authorization in its browser window.
 
 ```sh
 npm run setup
@@ -98,7 +108,7 @@ The browser uses one password and a signed, HTTP-only, same-site cookie with a o
 
 `npm run setup`, `npm run bootstrap`, `npm run dev`, `npm run build`, `npm run lint`, `npm run typecheck`, `npm run generate-token`, `npm run storage:init`, `npm run verify`, `npm run verify:remote`, `npm run deploy:vercel`, `npm run dev:vinext`, `npm run build:vinext`, `npm run start:vinext`, `npm run build:cloudflare`, `npm run preview:cloudflare`, `npm run deploy:cloudflare`, `npm run mcp`.
 
-`npm run verify` checks app secrets and that persistent workspace storage can be read. `npm run verify:remote` checks the page and authenticated state read; add `-- --write` to create and clean up a temporary goal and item.
+`npm run verify` checks local secrets and validates the local workspace file. `npm run verify:remote` checks the deployed page and authenticated state read; add `-- --write` to create and clean up a temporary goal and item.
 
 ## License
 
